@@ -50,6 +50,7 @@ osThreadId defaultTaskHandle;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_TIM3_Init(void);
 void StartDefaultTask(void const * argument);
 
@@ -96,6 +97,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 
@@ -207,6 +209,27 @@ static void MX_TIM3_Init(void)
   /* Peripheral clock enable */
   LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_TIM3);
 
+  /* TIM3 DMA Init */
+
+  /* TIM3_CH1_TRIG Init */
+  LL_DMA_SetChannelSelection(DMA1, LL_DMA_STREAM_4, LL_DMA_CHANNEL_5);
+
+  LL_DMA_SetDataTransferDirection(DMA1, LL_DMA_STREAM_4, LL_DMA_DIRECTION_MEMORY_TO_PERIPH);
+
+  LL_DMA_SetStreamPriorityLevel(DMA1, LL_DMA_STREAM_4, LL_DMA_PRIORITY_LOW);
+
+  LL_DMA_SetMode(DMA1, LL_DMA_STREAM_4, LL_DMA_MODE_NORMAL);
+
+  LL_DMA_SetPeriphIncMode(DMA1, LL_DMA_STREAM_4, LL_DMA_PERIPH_NOINCREMENT);
+
+  LL_DMA_SetMemoryIncMode(DMA1, LL_DMA_STREAM_4, LL_DMA_MEMORY_INCREMENT);
+
+  LL_DMA_SetPeriphSize(DMA1, LL_DMA_STREAM_4, LL_DMA_PDATAALIGN_BYTE);
+
+  LL_DMA_SetMemorySize(DMA1, LL_DMA_STREAM_4, LL_DMA_MDATAALIGN_BYTE);
+
+  LL_DMA_DisableFifoMode(DMA1, LL_DMA_STREAM_4);
+
   /* USER CODE BEGIN TIM3_Init 1 */
 
   /* USER CODE END TIM3_Init 1 */
@@ -240,6 +263,23 @@ static void MX_TIM3_Init(void)
   GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
   GPIO_InitStruct.Alternate = LL_GPIO_AF_2;
   LL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* Init with LL driver */
+  /* DMA controller clock enable */
+  LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_DMA1);
+
+  /* DMA interrupt init */
+  /* DMA1_Stream4_IRQn interrupt configuration */
+  NVIC_SetPriority(DMA1_Stream4_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(),5, 0));
+  NVIC_EnableIRQ(DMA1_Stream4_IRQn);
 
 }
 
@@ -471,7 +511,28 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void show(uint8_t const rgb[3])
+{
+	static uint8_t buffer[48] = {0};
+	memset(buffer, 0, sizeof(buffer));
+	for(size_t i = 0; i < 3; ++i)
+	{
+		uint8_t *p = &buffer[i * 8];
+		const uint8_t c = rgb[i];
+	    *(p++) = (c & 0x80) ? 8 : 4;
+	    *(p++) = (c & 0x40) ? 8 : 4;
+	    *(p++) = (c & 0x20) ? 8 : 4;
+	    *(p++) = (c & 0x10) ? 8 : 4;
+	    *(p++) = (c & 0x08) ? 8 : 4;
+	    *(p++) = (c & 0x04) ? 8 : 4;
+	    *(p++) = (c & 0x02) ? 8 : 4;
+	    *(p++) = (c & 0x01) ? 8 : 4;
+	}
+	LL_TIM_CC_EnableChannel(TIM3,LL_TIM_CHANNEL_CH1);
+	LL_TIM_EnableCounter(TIM3);
 
+	LL_TIM_DisableCounter(TIM3);
+}
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartDefaultTask */
