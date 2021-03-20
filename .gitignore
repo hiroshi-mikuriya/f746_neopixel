@@ -4,6 +4,7 @@
 !.gitignore
 !.cproject
 !.project
+!.clang-format
 !*.c
 !*.h
 !*.ioc
