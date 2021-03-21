@@ -23,7 +23,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -156,7 +156,7 @@ void SystemClock_Config(void) {
 
 	}
 	LL_RCC_PLL_ConfigDomain_SYS(LL_RCC_PLLSOURCE_HSE, LL_RCC_PLLM_DIV_4, 192,
-			LL_RCC_PLLP_DIV_2);
+	LL_RCC_PLLP_DIV_2);
 	LL_RCC_PLL_Enable();
 
 	/* Wait till PLL is ready */
@@ -199,6 +199,11 @@ static void MX_TIM3_Init(void) {
 	/* Peripheral clock enable */
 	LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_TIM3);
 
+	/* TIM3 interrupt Init */
+	NVIC_SetPriority(TIM3_IRQn,
+			NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
+	NVIC_EnableIRQ(TIM3_IRQn);
+
 	/* USER CODE BEGIN TIM3_Init 1 */
 
 	/* USER CODE END TIM3_Init 1 */
@@ -207,7 +212,7 @@ static void MX_TIM3_Init(void) {
 	TIM_InitStruct.Autoreload = 11;
 	TIM_InitStruct.ClockDivision = LL_TIM_CLOCKDIVISION_DIV1;
 	LL_TIM_Init(TIM3, &TIM_InitStruct);
-	LL_TIM_DisableARRPreload(TIM3);
+	LL_TIM_EnableARRPreload(TIM3);
 	LL_TIM_OC_EnablePreload(TIM3, LL_TIM_CHANNEL_CH1);
 	TIM_OC_InitStruct.OCMode = LL_TIM_OCMODE_PWM1;
 	TIM_OC_InitStruct.OCState = LL_TIM_OCSTATE_DISABLE;
@@ -215,9 +220,9 @@ static void MX_TIM3_Init(void) {
 	TIM_OC_InitStruct.CompareValue = 0;
 	TIM_OC_InitStruct.OCPolarity = LL_TIM_OCPOLARITY_HIGH;
 	LL_TIM_OC_Init(TIM3, LL_TIM_CHANNEL_CH1, &TIM_OC_InitStruct);
-	LL_TIM_OC_DisableFast(TIM3, LL_TIM_CHANNEL_CH1);
-	LL_TIM_SetTriggerOutput(TIM3, LL_TIM_TRGO_RESET);
-	LL_TIM_DisableMasterSlaveMode(TIM3);
+	LL_TIM_OC_EnableFast(TIM3, LL_TIM_CHANNEL_CH1);
+	LL_TIM_SetTriggerOutput(TIM3, LL_TIM_TRGO_OC1REF);
+	LL_TIM_EnableMasterSlaveMode(TIM3);
 	/* USER CODE BEGIN TIM3_Init 2 */
 
 	/* USER CODE END TIM3_Init 2 */
@@ -462,7 +467,38 @@ static void MX_GPIO_Init(void) {
 }
 
 /* USER CODE BEGIN 4 */
+typedef struct {
+	uint8_t m[1024];
+	uint32_t size;
+} Buffer;
 
+static Buffer s_buf = { 0 };
+/// @brief TIM割り込みからコールバックされる
+void PwmIrq() {
+	if (LL_TIM_IsActiveFlag_CC1(TIM3) == 1) {
+		LL_TIM_ClearFlag_CC1(TIM3);
+		osSignalSet(defaultTaskHandle, 1);
+	}
+}
+/// @brief バッファにPWM信号を格納する
+/// @param[in] rgb 色データ
+/// @param[out] buf バッファ
+void setBuffer(uint8_t const rgb[3], Buffer *buf) {
+	memset(buf, 0, sizeof(Buffer));
+	for (size_t i = 0; i < 3; ++i) {
+		uint8_t *p = &buf->m[i * 8];
+		const uint8_t c = rgb[i];
+		*(p++) = (c & 0x80) ? 8 : 4;
+		*(p++) = (c & 0x40) ? 8 : 4;
+		*(p++) = (c & 0x20) ? 8 : 4;
+		*(p++) = (c & 0x10) ? 8 : 4;
+		*(p++) = (c & 0x08) ? 8 : 4;
+		*(p++) = (c & 0x04) ? 8 : 4;
+		*(p++) = (c & 0x02) ? 8 : 4;
+		*(p++) = (c & 0x01) ? 8 : 4;
+		buf->size += 8;
+	}
+}
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -476,14 +512,22 @@ void StartDefaultTask(void const *argument) {
 	/* USER CODE BEGIN 5 */
 	LL_TIM_CC_EnableChannel(TIM3, LL_TIM_CHANNEL_CH1);
 	LL_TIM_EnableCounter(TIM3);
-	// LL_TIM_EnableAllOutputs(TIM3);
+	LL_TIM_EnableIT_CC1(TIM3);
+	LL_TIM_EnableAllOutputs(TIM3);
 	/* Infinite loop */
-	for (int pwm = 0;; pwm = (pwm + 1) % 12) {
-		osDelay(100);
-		LL_TIM_OC_SetCompareCH1(TIM3, pwm);
+	uint8_t rgb[3] = { 0x20, 0x00, 0x00 };
+	setBuffer(rgb, &s_buf);
+	for (uint32_t i = 0; i < s_buf.size; ++i) {
+		osSignalWait(1, 1000);
+		LL_TIM_OC_SetCompareCH1(TIM3, s_buf.m[i]);
 		LL_GPIO_TogglePin(LD1_GPIO_Port, LD1_Pin);
 		LL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
 		LL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
+	}
+	NVIC_DisableIRQ(TIM3_IRQn);
+	LL_TIM_DeInit(TIM3);
+	for (;;) {
+		osDelay(1000);
 	}
 	/* USER CODE END 5 */
 }
