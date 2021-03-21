@@ -120,7 +120,7 @@ int main(void) {
 
     /* Create the thread(s) */
     /* definition and creation of defaultTask */
-    osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 128);
+    osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 2048);
     defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
     /* USER CODE BEGIN RTOS_THREADS */
@@ -229,9 +229,9 @@ static void MX_SPI3_Init(void) {
 
     LL_DMA_SetMemoryIncMode(DMA1, LL_DMA_STREAM_5, LL_DMA_MEMORY_INCREMENT);
 
-    LL_DMA_SetPeriphSize(DMA1, LL_DMA_STREAM_5, LL_DMA_PDATAALIGN_HALFWORD);
+    LL_DMA_SetPeriphSize(DMA1, LL_DMA_STREAM_5, LL_DMA_PDATAALIGN_BYTE);
 
-    LL_DMA_SetMemorySize(DMA1, LL_DMA_STREAM_5, LL_DMA_MDATAALIGN_HALFWORD);
+    LL_DMA_SetMemorySize(DMA1, LL_DMA_STREAM_5, LL_DMA_MDATAALIGN_BYTE);
 
     LL_DMA_DisableFifoMode(DMA1, LL_DMA_STREAM_5);
 
@@ -242,16 +242,16 @@ static void MX_SPI3_Init(void) {
     SPI_InitStruct.TransferDirection = LL_SPI_FULL_DUPLEX;
     SPI_InitStruct.Mode = LL_SPI_MODE_MASTER;
     SPI_InitStruct.DataWidth = LL_SPI_DATAWIDTH_8BIT;
-    SPI_InitStruct.ClockPolarity = LL_SPI_POLARITY_LOW;
-    SPI_InitStruct.ClockPhase = LL_SPI_PHASE_1EDGE;
+    SPI_InitStruct.ClockPolarity = LL_SPI_POLARITY_HIGH;
+    SPI_InitStruct.ClockPhase = LL_SPI_PHASE_2EDGE;
     SPI_InitStruct.NSS = LL_SPI_NSS_SOFT;
-    SPI_InitStruct.BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV256;
+    SPI_InitStruct.BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV8;
     SPI_InitStruct.BitOrder = LL_SPI_MSB_FIRST;
     SPI_InitStruct.CRCCalculation = LL_SPI_CRCCALCULATION_DISABLE;
     SPI_InitStruct.CRCPoly = 7;
     LL_SPI_Init(SPI3, &SPI_InitStruct);
     LL_SPI_SetStandard(SPI3, LL_SPI_PROTOCOL_MOTOROLA);
-    LL_SPI_EnableNSSPulseMgt(SPI3);
+    LL_SPI_DisableNSSPulseMgt(SPI3);
     /* USER CODE BEGIN SPI3_Init 2 */
 
     /* USER CODE END SPI3_Init 2 */
@@ -507,22 +507,29 @@ void SpiTxIrq() {
         LL_DMA_ClearFlag_TE5(DMA1);
     }
 }
-
-void show(uint8_t const rgb[3]) {
-    static uint8_t buffer[48] = { 0 };
-    memset(buffer, 0, sizeof(buffer));
-    for (size_t i = 0; i < 3; ++i) {
-        uint8_t* p = &buffer[i * 8];
-        const uint8_t c = rgb[i];
-        *(p++) = (c & 0x80) ? 8 : 4;
-        *(p++) = (c & 0x40) ? 8 : 4;
-        *(p++) = (c & 0x20) ? 8 : 4;
-        *(p++) = (c & 0x10) ? 8 : 4;
-        *(p++) = (c & 0x08) ? 8 : 4;
-        *(p++) = (c & 0x04) ? 8 : 4;
-        *(p++) = (c & 0x02) ? 8 : 4;
-        *(p++) = (c & 0x01) ? 8 : 4;
+/// @brief NeoPixelのPWMデータへ変換
+/// @param[in] src 色データ
+/// @param[in] count LED数
+/// @param[out] buffer PWMデータ
+void convert(uint8_t const* rgb, uint32_t count, uint8_t* buffer) {
+#define NEO_0 0b11100000
+#define NEO_1 0b11111000
+    uint8_t* p = buffer;
+    for (uint32_t i = 0; i < count; ++i) {
+        for (uint32_t j = 0; j < 3; ++j) {
+            const uint8_t c = rgb[j];
+            *(p++) = (c & 0x80) ? NEO_1 : NEO_0;
+            *(p++) = (c & 0x40) ? NEO_1 : NEO_0;
+            *(p++) = (c & 0x20) ? NEO_1 : NEO_0;
+            *(p++) = (c & 0x10) ? NEO_1 : NEO_0;
+            *(p++) = (c & 0x08) ? NEO_1 : NEO_0;
+            *(p++) = (c & 0x04) ? NEO_1 : NEO_0;
+            *(p++) = (c & 0x02) ? NEO_1 : NEO_0;
+            *(p++) = (c & 0x01) ? NEO_1 : NEO_0;
+        }
     }
+#undef NEO_1
+#undef NEO_0
 }
 /* USER CODE END 4 */
 
@@ -535,22 +542,38 @@ void show(uint8_t const rgb[3]) {
 /* USER CODE END Header_StartDefaultTask */
 void StartDefaultTask(void const* argument) {
     /* USER CODE BEGIN 5 */
+#define N 48
+#define EMPTY 48
     LL_SPI_Enable(SPI3);
-    uint8_t buffer[24] = { 0x55, 0xAA, 0x55 };
+    const uint8_t red[3] = { 0x00 /*green*/, 0x80 /*red*/, 0x00 /*blue*/ };
+    const uint8_t green[3] = { 0x80 /*green*/, 0x00 /*red*/, 0x00 /*blue*/ };
+    const uint8_t blue[3] = { 0x00 /*green*/, 0x00 /*red*/, 0x80 /*blue*/ };
+    uint8_t buffer[EMPTY + (N * 3) * 8] = { 0 };
     LL_DMA_ConfigAddresses(DMA1, LL_DMA_STREAM_5, (uint32_t)&buffer, LL_SPI_DMA_GetRegAddr(SPI3),
         LL_DMA_DIRECTION_MEMORY_TO_PERIPH);
     LL_DMA_EnableIT_TC(DMA1, LL_DMA_STREAM_5);
     LL_DMA_EnableIT_TE(DMA1, LL_DMA_STREAM_5);
-    // LL_DMA_DisableStream(DMA1, LL_DMA_STREAM_5);
-    LL_DMA_SetDataLength(DMA1, LL_DMA_STREAM_5, sizeof(buffer) / 2);
+    LL_DMA_SetDataLength(DMA1, LL_DMA_STREAM_5, sizeof(buffer));
     /* Infinite loop */
-    for (;;) {
+    for (int i = 0;; i = (i + 1) % 3) {
+        switch (i) {
+        case 0:
+            convert(red, N, &buffer[EMPTY]);
+            break;
+        case 1:
+            convert(green, N, &buffer[EMPTY]);
+            break;
+        case 2:
+            convert(blue, N, &buffer[EMPTY]);
+            break;
+        }
         LL_DMA_EnableStream(DMA1, LL_DMA_STREAM_5);
         LL_SPI_EnableDMAReq_TX(SPI3);
         osSignalWait(1, 1000);
         LL_GPIO_TogglePin(LD1_GPIO_Port, LD1_Pin);
         LL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
         LL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
+        osDelay(500);
     }
     /* USER CODE END 5 */
 }
