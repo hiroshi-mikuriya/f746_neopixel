@@ -23,7 +23,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -51,7 +51,7 @@ osThreadId defaultTaskHandle;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
-static void MX_TIM3_Init(void);
+static void MX_SPI3_Init(void);
 void StartDefaultTask(void const* argument);
 
 /* USER CODE BEGIN PFP */
@@ -97,7 +97,7 @@ int main(void) {
     /* Initialize all configured peripherals */
     MX_GPIO_Init();
     MX_DMA_Init();
-    MX_TIM3_Init();
+    MX_SPI3_Init();
     /* USER CODE BEGIN 2 */
 
     /* USER CODE END 2 */
@@ -146,15 +146,15 @@ int main(void) {
  * @retval None
  */
 void SystemClock_Config(void) {
-    LL_FLASH_SetLatency(LL_FLASH_LATENCY_6);
-    while (LL_FLASH_GetLatency() != LL_FLASH_LATENCY_6) {}
+    LL_FLASH_SetLatency(LL_FLASH_LATENCY_7);
+    while (LL_FLASH_GetLatency() != LL_FLASH_LATENCY_7) {}
     LL_PWR_SetRegulVoltageScaling(LL_PWR_REGU_VOLTAGE_SCALE1);
     LL_PWR_EnableOverDriveMode();
     LL_RCC_HSE_Enable();
 
     /* Wait till HSE is ready */
     while (LL_RCC_HSE_IsReady() != 1) {}
-    LL_RCC_PLL_ConfigDomain_SYS(LL_RCC_PLLSOURCE_HSE, LL_RCC_PLLM_DIV_4, 192, LL_RCC_PLLP_DIV_2);
+    LL_RCC_PLL_ConfigDomain_SYS(LL_RCC_PLLSOURCE_HSE, LL_RCC_PLLM_DIV_4, 216, LL_RCC_PLLP_DIV_2);
     LL_RCC_PLL_Enable();
 
     /* Wait till PLL is ready */
@@ -166,7 +166,7 @@ void SystemClock_Config(void) {
 
     /* Wait till System clock is ready */
     while (LL_RCC_GetSysClkSource() != LL_RCC_SYS_CLKSOURCE_STATUS_PLL) {}
-    LL_SetSystemCoreClock(192000000);
+    LL_SetSystemCoreClock(216000000);
 
     /* Update the time base */
     if (HAL_InitTick(TICK_INT_PRIORITY) != HAL_OK) {
@@ -175,78 +175,86 @@ void SystemClock_Config(void) {
 }
 
 /**
- * @brief TIM3 Initialization Function
+ * @brief SPI3 Initialization Function
  * @param None
  * @retval None
  */
-static void MX_TIM3_Init(void) {
+static void MX_SPI3_Init(void) {
 
-    /* USER CODE BEGIN TIM3_Init 0 */
+    /* USER CODE BEGIN SPI3_Init 0 */
 
-    /* USER CODE END TIM3_Init 0 */
+    /* USER CODE END SPI3_Init 0 */
 
-    LL_TIM_InitTypeDef TIM_InitStruct = { 0 };
-    LL_TIM_OC_InitTypeDef TIM_OC_InitStruct = { 0 };
+    LL_SPI_InitTypeDef SPI_InitStruct = { 0 };
 
     LL_GPIO_InitTypeDef GPIO_InitStruct = { 0 };
 
     /* Peripheral clock enable */
-    LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_TIM3);
+    LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_SPI3);
 
-    /* TIM3 DMA Init */
-
-    /* TIM3_CH1_TRIG Init */
-    LL_DMA_SetChannelSelection(DMA1, LL_DMA_STREAM_4, LL_DMA_CHANNEL_5);
-
-    LL_DMA_SetDataTransferDirection(DMA1, LL_DMA_STREAM_4, LL_DMA_DIRECTION_MEMORY_TO_PERIPH);
-
-    LL_DMA_SetStreamPriorityLevel(DMA1, LL_DMA_STREAM_4, LL_DMA_PRIORITY_LOW);
-
-    LL_DMA_SetMode(DMA1, LL_DMA_STREAM_4, LL_DMA_MODE_NORMAL);
-
-    LL_DMA_SetPeriphIncMode(DMA1, LL_DMA_STREAM_4, LL_DMA_PERIPH_NOINCREMENT);
-
-    LL_DMA_SetMemoryIncMode(DMA1, LL_DMA_STREAM_4, LL_DMA_MEMORY_INCREMENT);
-
-    LL_DMA_SetPeriphSize(DMA1, LL_DMA_STREAM_4, LL_DMA_PDATAALIGN_BYTE);
-
-    LL_DMA_SetMemorySize(DMA1, LL_DMA_STREAM_4, LL_DMA_MDATAALIGN_BYTE);
-
-    LL_DMA_DisableFifoMode(DMA1, LL_DMA_STREAM_4);
-
-    /* USER CODE BEGIN TIM3_Init 1 */
-
-    /* USER CODE END TIM3_Init 1 */
-    TIM_InitStruct.Prescaler = 9;
-    TIM_InitStruct.CounterMode = LL_TIM_COUNTERMODE_UP;
-    TIM_InitStruct.Autoreload = 11;
-    TIM_InitStruct.ClockDivision = LL_TIM_CLOCKDIVISION_DIV1;
-    LL_TIM_Init(TIM3, &TIM_InitStruct);
-    LL_TIM_DisableARRPreload(TIM3);
-    LL_TIM_OC_EnablePreload(TIM3, LL_TIM_CHANNEL_CH1);
-    TIM_OC_InitStruct.OCMode = LL_TIM_OCMODE_PWM1;
-    TIM_OC_InitStruct.OCState = LL_TIM_OCSTATE_DISABLE;
-    TIM_OC_InitStruct.OCNState = LL_TIM_OCSTATE_DISABLE;
-    TIM_OC_InitStruct.CompareValue = 0;
-    TIM_OC_InitStruct.OCPolarity = LL_TIM_OCPOLARITY_HIGH;
-    LL_TIM_OC_Init(TIM3, LL_TIM_CHANNEL_CH1, &TIM_OC_InitStruct);
-    LL_TIM_OC_DisableFast(TIM3, LL_TIM_CHANNEL_CH1);
-    LL_TIM_SetTriggerOutput(TIM3, LL_TIM_TRGO_RESET);
-    LL_TIM_DisableMasterSlaveMode(TIM3);
-    /* USER CODE BEGIN TIM3_Init 2 */
-
-    /* USER CODE END TIM3_Init 2 */
-    LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
-    /**TIM3 GPIO Configuration
-    PA6   ------> TIM3_CH1
+    LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOB);
+    LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOC);
+    /**SPI3 GPIO Configuration
+    PB2   ------> SPI3_MOSI
+    PC10   ------> SPI3_SCK
     */
-    GPIO_InitStruct.Pin = LL_GPIO_PIN_6;
+    GPIO_InitStruct.Pin = LL_GPIO_PIN_2;
     GPIO_InitStruct.Mode = LL_GPIO_MODE_ALTERNATE;
     GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_VERY_HIGH;
     GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
     GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-    GPIO_InitStruct.Alternate = LL_GPIO_AF_2;
-    LL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+    GPIO_InitStruct.Alternate = LL_GPIO_AF_7;
+    LL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    GPIO_InitStruct.Pin = LL_GPIO_PIN_10;
+    GPIO_InitStruct.Mode = LL_GPIO_MODE_ALTERNATE;
+    GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+    GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+    GPIO_InitStruct.Alternate = LL_GPIO_AF_6;
+    LL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+    /* SPI3 DMA Init */
+
+    /* SPI3_TX Init */
+    LL_DMA_SetChannelSelection(DMA1, LL_DMA_STREAM_5, LL_DMA_CHANNEL_0);
+
+    LL_DMA_SetDataTransferDirection(DMA1, LL_DMA_STREAM_5, LL_DMA_DIRECTION_MEMORY_TO_PERIPH);
+
+    LL_DMA_SetStreamPriorityLevel(DMA1, LL_DMA_STREAM_5, LL_DMA_PRIORITY_LOW);
+
+    LL_DMA_SetMode(DMA1, LL_DMA_STREAM_5, LL_DMA_MODE_NORMAL);
+
+    LL_DMA_SetPeriphIncMode(DMA1, LL_DMA_STREAM_5, LL_DMA_PERIPH_NOINCREMENT);
+
+    LL_DMA_SetMemoryIncMode(DMA1, LL_DMA_STREAM_5, LL_DMA_MEMORY_INCREMENT);
+
+    LL_DMA_SetPeriphSize(DMA1, LL_DMA_STREAM_5, LL_DMA_PDATAALIGN_BYTE);
+
+    LL_DMA_SetMemorySize(DMA1, LL_DMA_STREAM_5, LL_DMA_MDATAALIGN_BYTE);
+
+    LL_DMA_DisableFifoMode(DMA1, LL_DMA_STREAM_5);
+
+    /* USER CODE BEGIN SPI3_Init 1 */
+
+    /* USER CODE END SPI3_Init 1 */
+    /* SPI3 parameter configuration*/
+    SPI_InitStruct.TransferDirection = LL_SPI_FULL_DUPLEX;
+    SPI_InitStruct.Mode = LL_SPI_MODE_MASTER;
+    SPI_InitStruct.DataWidth = LL_SPI_DATAWIDTH_8BIT;
+    SPI_InitStruct.ClockPolarity = LL_SPI_POLARITY_LOW;
+    SPI_InitStruct.ClockPhase = LL_SPI_PHASE_1EDGE;
+    SPI_InitStruct.NSS = LL_SPI_NSS_SOFT;
+    SPI_InitStruct.BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV2;
+    SPI_InitStruct.BitOrder = LL_SPI_MSB_FIRST;
+    SPI_InitStruct.CRCCalculation = LL_SPI_CRCCALCULATION_DISABLE;
+    SPI_InitStruct.CRCPoly = 7;
+    LL_SPI_Init(SPI3, &SPI_InitStruct);
+    LL_SPI_SetStandard(SPI3, LL_SPI_PROTOCOL_MOTOROLA);
+    LL_SPI_EnableNSSPulseMgt(SPI3);
+    /* USER CODE BEGIN SPI3_Init 2 */
+
+    /* USER CODE END SPI3_Init 2 */
 }
 
 /**
@@ -259,9 +267,9 @@ static void MX_DMA_Init(void) {
     LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_DMA1);
 
     /* DMA interrupt init */
-    /* DMA1_Stream4_IRQn interrupt configuration */
-    NVIC_SetPriority(DMA1_Stream4_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
-    NVIC_EnableIRQ(DMA1_Stream4_IRQn);
+    /* DMA1_Stream5_IRQn interrupt configuration */
+    NVIC_SetPriority(DMA1_Stream5_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
+    NVIC_EnableIRQ(DMA1_Stream5_IRQn);
 }
 
 /**
@@ -505,13 +513,9 @@ void show(uint8_t const rgb[3]) {
         *(p++) = (c & 0x02) ? 8 : 4;
         *(p++) = (c & 0x01) ? 8 : 4;
     }
-    LL_TIM_CC_EnableChannel(TIM3, LL_TIM_CHANNEL_CH1);
-    LL_TIM_EnableCounter(TIM3);
-
-    LL_TIM_DisableCounter(TIM3);
 }
 /* USER CODE END 4 */
-
+void SpiTxIrq() {}
 /* USER CODE BEGIN Header_StartDefaultTask */
 /**
  * @brief  Function implementing the defaultTask thread.
@@ -521,13 +525,9 @@ void show(uint8_t const rgb[3]) {
 /* USER CODE END Header_StartDefaultTask */
 void StartDefaultTask(void const* argument) {
     /* USER CODE BEGIN 5 */
-    LL_TIM_CC_EnableChannel(TIM3, LL_TIM_CHANNEL_CH1);
-    LL_TIM_EnableCounter(TIM3);
-    // LL_TIM_EnableAllOutputs(TIM3);
     /* Infinite loop */
-    for (int pwm = 0;; pwm = (pwm + 1) % 12) {
+    for (;;) {
         osDelay(100);
-        LL_TIM_OC_SetCompareCH1(TIM3, pwm);
         LL_GPIO_TogglePin(LD1_GPIO_Port, LD1_Pin);
         LL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
         LL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
