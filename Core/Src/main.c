@@ -229,9 +229,9 @@ static void MX_SPI3_Init(void) {
 
     LL_DMA_SetMemoryIncMode(DMA1, LL_DMA_STREAM_5, LL_DMA_MEMORY_INCREMENT);
 
-    LL_DMA_SetPeriphSize(DMA1, LL_DMA_STREAM_5, LL_DMA_PDATAALIGN_BYTE);
+    LL_DMA_SetPeriphSize(DMA1, LL_DMA_STREAM_5, LL_DMA_PDATAALIGN_HALFWORD);
 
-    LL_DMA_SetMemorySize(DMA1, LL_DMA_STREAM_5, LL_DMA_MDATAALIGN_BYTE);
+    LL_DMA_SetMemorySize(DMA1, LL_DMA_STREAM_5, LL_DMA_MDATAALIGN_HALFWORD);
 
     LL_DMA_DisableFifoMode(DMA1, LL_DMA_STREAM_5);
 
@@ -245,7 +245,7 @@ static void MX_SPI3_Init(void) {
     SPI_InitStruct.ClockPolarity = LL_SPI_POLARITY_LOW;
     SPI_InitStruct.ClockPhase = LL_SPI_PHASE_1EDGE;
     SPI_InitStruct.NSS = LL_SPI_NSS_SOFT;
-    SPI_InitStruct.BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV2;
+    SPI_InitStruct.BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV256;
     SPI_InitStruct.BitOrder = LL_SPI_MSB_FIRST;
     SPI_InitStruct.CRCCalculation = LL_SPI_CRCCALCULATION_DISABLE;
     SPI_InitStruct.CRCPoly = 7;
@@ -498,6 +498,16 @@ static void MX_GPIO_Init(void) {
 }
 
 /* USER CODE BEGIN 4 */
+void SpiTxIrq() {
+    if (LL_DMA_IsActiveFlag_TC5(DMA1) == 1) {
+        LL_DMA_ClearFlag_TC5(DMA1);
+        osSignalSet(defaultTaskHandle, 1);
+    }
+    if (LL_DMA_IsActiveFlag_TE5(DMA1) == 1) {
+        LL_DMA_ClearFlag_TE5(DMA1);
+    }
+}
+
 void show(uint8_t const rgb[3]) {
     static uint8_t buffer[48] = { 0 };
     memset(buffer, 0, sizeof(buffer));
@@ -515,7 +525,7 @@ void show(uint8_t const rgb[3]) {
     }
 }
 /* USER CODE END 4 */
-void SpiTxIrq() {}
+
 /* USER CODE BEGIN Header_StartDefaultTask */
 /**
  * @brief  Function implementing the defaultTask thread.
@@ -525,9 +535,19 @@ void SpiTxIrq() {}
 /* USER CODE END Header_StartDefaultTask */
 void StartDefaultTask(void const* argument) {
     /* USER CODE BEGIN 5 */
+    LL_SPI_Enable(SPI3);
+    uint8_t buffer[24] = { 0x55, 0xAA, 0x55 };
+    LL_DMA_ConfigAddresses(DMA1, LL_DMA_STREAM_5, (uint32_t)&buffer, LL_SPI_DMA_GetRegAddr(SPI3),
+        LL_DMA_DIRECTION_MEMORY_TO_PERIPH);
+    LL_DMA_EnableIT_TC(DMA1, LL_DMA_STREAM_5);
+    LL_DMA_EnableIT_TE(DMA1, LL_DMA_STREAM_5);
+    // LL_DMA_DisableStream(DMA1, LL_DMA_STREAM_5);
+    LL_DMA_SetDataLength(DMA1, LL_DMA_STREAM_5, sizeof(buffer) / 2);
     /* Infinite loop */
     for (;;) {
-        osDelay(100);
+        LL_DMA_EnableStream(DMA1, LL_DMA_STREAM_5);
+        LL_SPI_EnableDMAReq_TX(SPI3);
+        osSignalWait(1, 1000);
         LL_GPIO_TogglePin(LD1_GPIO_Port, LD1_Pin);
         LL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
         LL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
