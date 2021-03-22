@@ -1,49 +1,14 @@
-# Visual Studio で生成された .clang-format ファイル
- 
-# このファイル内のスタイルのオプションは、[ツール] > [オプション] から
-# 現在の IDE 書式設定を複製しようとします。ただし、次のスタイルの
-# オプションを検証する必要があります:
-# AfterClass, AfterControlStatement, AfterEnum, AfterFunction, AfterNamespace, 
-# AfterStruct, AfterUnion
- 
-AccessModifierOffset: -4
-AlignAfterOpenBracket: DontAlign
-AllowShortBlocksOnASingleLine: true
-AllowShortFunctionsOnASingleLine: All
-BasedOnStyle: LLVM
-BraceWrapping:
-  AfterClass: false    # TODO: 確認してください
-  AfterControlStatement: false    # TODO: 確認してください
-  AfterEnum: false    # TODO: 確認してください
-  AfterFunction: false    # TODO: 確認してください
-  AfterNamespace: false    # TODO: 確認してください
-  AfterStruct: false    # TODO: 確認してください
-  AfterUnion: false    # TODO: 確認してください
-  BeforeCatch: true
-  BeforeElse: true
-  IndentBraces: false
-  SplitEmptyFunction: true
-  SplitEmptyRecord: true
-BreakBeforeBraces: Custom
-ColumnLimit: 100
-ConstructorInitializerAllOnOneLineOrOnePerLine: true
-Cpp11BracedListStyle: false
-FixNamespaceComments: true
-IndentCaseLabels: false
-IndentPPDirectives: None
+# SortIncludes: false
 IndentWidth: 4
-MaxEmptyLinesToKeep: 10
-NamespaceIndentation: None
-PointerAlignment: Left
-SortIncludes: true
-SortUsingDeclarations: false
-SpaceAfterCStyleCast: false
-SpaceBeforeAssignmentOperators: true
-SpaceBeforeParens: ControlStatements
-SpaceInEmptyParentheses: false
-SpacesInCStyleCastParentheses: false
-SpacesInParentheses: false
-SpacesInSquareBrackets: false
-TabWidth: 4
-UseTab: false
+UseTab: Never
+Standard: Auto
+AccessModifierOffset: -4
+BreakBeforeBraces: Allman # "{" の直前で改行する
+AllowShortIfStatementsOnASingleLine: false
+IndentCaseLabels: false
+ColumnLimit: 160
 
+AlwaysBreakTemplateDeclarations: Yes # "template<略>" の後で改行する
+AllowShortFunctionsOnASingleLine: Inline # クラス内で定義されたインライン関数及び空の関数のみ、改行なしの関数定義を許可する。
+AlignEscapedNewlines: Left # 多行マクロの行末バックスラッシュの前のスペースを少なめにする
+CommentPragmas: '[\*\!\/]' # コメントの冒頭が *、!、/ のいずれかの場合、そのコメントを整形しない(doxygen コメントを壊さないようにする)
